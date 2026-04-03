@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>고전 새로 쓰기</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f4f0; color: #1a1a1a; }
+  .app { max-width: 680px; margin: 0 auto; padding: 1.5rem 1rem; }
+  .screen { display: none; }
+  .screen.active { display: block; }
+  .header { margin-bottom: 2rem; }
+  .header h1 { font-size: 24px; font-weight: 600; }
+  .header p { font-size: 14px; color: #666; margin-top: 4px; }
+  .book-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; margin-bottom: 1.5rem; }
+  .book-card { background: white; border: 1px solid #e5e5e5; border-radius: 12px; padding: 1rem; cursor: pointer; transition: border-color 0.15s; }
+  .book-card:hover { border-color: #aaa; }
+  .book-card.selected { border: 2px solid #534AB7; }
+  .book-top { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+  .book-emoji { font-size: 20px; }
+  .book-title { font-size: 14px; font-weight: 600; }
+  .book-author { font-size: 11px; color: #888; margin-top: 1px; }
+  .book-synopsis { font-size: 12px; color: #666; line-height: 1.6; border-top: 1px solid #f0f0f0; padding-top: 8px; }
+  .section-label { font-size: 13px; color: #888; margin-bottom: 8px; font-weight: 500; }
+  .option-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 1.5rem; }
+  .option-card { background: white; border: 1px solid #e5e5e5; border-radius: 8px; padding: 12px; cursor: pointer; transition: border-color 0.15s; }
+  .option-card:hover { border-color: #aaa; }
+  .option-card.selected { border: 2px solid #534AB7; }
+  .o-label { font-size: 13px; font-weight: 600; }
+  .o-desc { font-size: 12px; color: #888; margin-top: 2px; }
+  .char-select-wrap { margin-bottom: 1.5rem; display: none; }
+  .char-select-wrap.visible { display: block; }
+  .char-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 8px; }
+  .char-card { background: white; border: 1px solid #e5e5e5; border-radius: 8px; padding: 10px 12px; cursor: pointer; font-size: 13px; text-align: center; transition: border-color 0.15s; }
+  .char-card:hover { border-color: #aaa; }
+  .char-card.selected { border: 2px solid #534AB7; color: #534AB7; font-weight: 600; }
+  .keyword-input { width: 100%; border: 1px solid #e5e5e5; border-radius: 8px; padding: 10px 12px; font-size: 14px; background: white; margin-bottom: 1.5rem; outline: none; }
+  .keyword-input:focus { border-color: #534AB7; }
+  .btn-primary { width: 100%; padding: 13px; background: #534AB7; color: white; border: none; border-radius: 8px; font-size: 15px; font-weight: 600; cursor: pointer; }
+  .btn-primary:hover { background: #3C3489; }
+  .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
+  .btn-back { background: none; border: none; font-size: 13px; color: #888; cursor: pointer; margin-bottom: 1.5rem; padding: 0; }
+  .btn-back:hover { color: #333; }
+  .selected-info { background: #f0eff8; border-radius: 8px; padding: 10px 14px; margin-bottom: 1.5rem; font-size: 13px; color: #666; }
+  .selected-info strong { color: #1a1a1a; font-weight: 600; }
+  .divider { height: 1px; background: #f0f0f0; margin-bottom: 1.5rem; }
+  .loading-box { text-align: center; padding: 4rem 1rem; }
+  .spinner { width: 32px; height: 32px; border: 2px solid #e5e5e5; border-top-color: #534AB7; border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 1rem; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .loading-box p { font-size: 14px; color: #888; }
+  .result-box { background: white; border: 1px solid #e5e5e5; border-radius: 12px; padding: 1.5rem; margin-bottom: 1.5rem; }
+  .result-tags { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 1rem; }
+  .result-tag { font-size: 11px; font-weight: 600; padding: 3px 8px; border-radius: 20px; background: #EEEDFE; color: #534AB7; }
+  .result-text { font-size: 15px; line-height: 1.9; white-space: pre-wrap; }
+  .btn-retry { width: 100%; padding: 12px; background: white; color: #333; border: 1px solid #e5e5e5; border-radius: 8px; font-size: 14px; cursor: pointer; margin-top: 8px; }
+  .btn-retry:hover { border-color: #aaa; }
+</style>
+</head>
+<body>
+<div class="app">
+  <div id="screen-select" class="screen active">
+    <div class="header">
+      <h1>고전 새로 쓰기</h1>
+      <p>읽고 싶은 작품을 골라 결말을 바꿔보세요</p>
+    </div>
+    <div class="section-label">작품 선택</div>
+    <div class="book-grid" id="book-grid"></div>
+    <button class="btn-primary" id="btn-next-1" disabled>다음 →</button>
+  </div>
+
+  <div id="screen-options" class="screen">
+    <button class="btn-back" onclick="goBack('screen-select')">← 뒤로</button>
+    <div class="header">
+      <h1>결말 · 시점 선택</h1>
+      <p>어떻게 다시 써볼까요?</p>
+    </div>
+    <div class="selected-info" id="selected-book-info"></div>
+    <div class="section-label">결말 유형</div>
+    <div class="option-grid" id="ending-grid"></div>
+    <div class="divider"></div>
+    <div class="section-label">시점 선택</div>
+    <div class="option-grid" id="pov-grid"></div>
+    <div class="char-select-wrap" id="char-select-wrap">
+      <div class="section-label">관찰할 인물 선택</div>
+      <div class="char-grid" id="char-grid"></div>
+    </div>
+    <div class="divider"></div>
+    <div class="section-label">키워드 추가 (선택)</div>
+    <input class="keyword-input" id="keyword-input" type="text" placeholder="예: 주인공이 복수에 성공한다, 바다로 떠난다..." />
+    <button class="btn-primary" id="btn-generate">AI로 결말 생성하기</button>
+  </div>
+
+  <div id="screen-loading" class="screen">
+    <div class="loading-box">
+      <div class="spinner"></div>
+      <p>AI가 새로운 결말을 쓰고 있어요...</p>
+    </div>
+  </div>
+
+  <div id="screen-result" class="screen">
+    <button class="btn-back" onclick="goBack('screen-select')">← 처음으로</button>
+    <div class="header"><h1>새로운 결말</h1></div>
+    <div class="result-box">
+      <div class="result-tags" id="result-tags"></div>
+      <div class="result-text" id="result-text"></div>
+    </div>
+    <button class="btn-primary" onclick="goBack('screen-options')">다른 설정으로 써보기</button>
+    <button class="btn-retry" onclick="generate()">같은 설정으로 다시 생성</button>
+  </div>
+</div>
+
+<script>
+const API_KEY = "AIzaSyAdUVuppBygEP63oO33YunoYa1oWCwTGxs";
+
+const books = [
+  { id:"chunhyang", title:"춘향전", author:"작자 미상", emoji:"🌸", synopsis:"퇴기의 딸 춘향과 양반 이몽룡이 신분 차이를 넘어 사랑에 빠진다.\n탐관오리 변학도가 춘향을 탐하며 옥에 가두고 온갖 핍박을 가한다.\n암행어사로 돌아온 이몽룡이 변학도를 처벌하고 춘향을 구출한다.", summary:"신분 차이를 넘은 이몽룡과 성춘향의 사랑 이야기. 변학도의 핍박 속에서도 절개를 지킨 춘향이 결국 이몽룡의 암행어사 부임으로 구출된다.", characters:["춘향","이몽룡","변학도","월매","향단"] },
+  { id:"heungbu", title:"흥부전", author:"작자 미상", emoji:"🦢", synopsis:"착한 동생 흥부는 형 놀부에게 쫓겨나 가난하게 살아간다.\n흥부가 다친 제비를 정성껏 치료해주자 제비가 박씨를 물어다 준다.\n박을 타니 금은보화가 쏟아지고, 욕심 많은 놀부는 흉내 내다 망한다.", summary:"착한 흥부와 심술궂은 놀부 형제의 이야기. 흥부가 다친 제비를 고쳐주고 박씨를 받아 부자가 되고, 놀부는 욕심을 부리다 벌을 받는다.", characters:["흥부","놀부","흥부 아내","놀부 아내","제비"] },
+  { id:"simcheong", title:"심청전", author:"작자 미상", emoji:"🌊", synopsis:"눈먼 아버지를 홀로 봉양하는 효녀 심청이 아버지의 눈을 뜨게 하려 한다.\n공양미 삼백 석 대가로 인당수 제물이 되기로 하고 바다에 뛰어든다.\n용왕의 도움으로 연꽃을 타고 황후가 되어 아버지와 극적으로 재회한다.", summary:"효녀 심청이 눈먼 아버지의 눈을 뜨게 하기 위해 인당수에 몸을 던졌다가 용왕의 도움으로 황후가 되어 아버지와 재회하는 이야기.", characters:["심청","심봉사","뺑덕어멈","용왕","선원들"] },
+  { id:"romeo", title:"로미오와 줄리엣", author:"셰익스피어", emoji:"🗡️", synopsis:"원수 집안인 몬태규와 캐풀릿 가문의 남녀가 첫눈에 사랑에 빠진다.\n집안의 반대와 추방, 계략이 뒤엉키며 비극으로 치닫는다.\n줄리엣이 가사 상태인 줄 모른 로미오가 독을 마시고, 깨어난 줄리엣도 뒤를 따른다.", summary:"원수 집안 출신인 로미오와 줄리엣의 비극적인 사랑 이야기. 오해로 인해 두 연인이 모두 죽음을 맞이한다.", characters:["로미오","줄리엣","머큐시오","티볼트","로렌스 신부"] },
+  { id:"metamorphosis", title:"변신", author:"카프카", emoji:"🪲", synopsis:"어느 날 아침 회사원 그레고르 잠자가 거대한 벌레로 변해 있다.\n가족들은 처음엔 돌보지만 점차 그를 짐으로 여기고 방치한다.\n그레고르는 가족을 위해 스스로 죽음을 택하고, 가족은 홀가분하게 나들이를 떠난다.", summary:"어느 날 아침 그레고르 잠자가 거대한 벌레로 변해 가족과 사회로부터 소외되어가는 이야기.", characters:["그레고르","그레테","아버지","어머니","하숙인들"] },
+  { id:"jean", title:"레 미제라블", author:"빅토르 위고", emoji:"⛓️", synopsis:"빵 한 조각을 훔친 죄로 19년을 복역한 장발장이 사회에 나온다.\n끊임없이 쫓는 형사 자베르와 쫓기는 장발장의 평생에 걸친 추격이 이어진다.\n장발장은 선행과 희생으로 진정한 구원에 이르고 평화롭게 생을 마감한다.", summary:"빵 한 조각을 훔쳐 19년을 복역한 장발장이 사회의 편견과 싸우며 인간적 구원을 향해 나아가는 이야기.", characters:["장발장","자베르","코제트","판틴","테나르디에"] },
+];
+
+const endings = [
+  { id:"happy", label:"해피엔딩", desc:"모두가 행복하게 끝난다" },
+  { id:"sad", label:"새드엔딩", desc:"비극적인 결말로 바꾼다" },
+  { id:"twist", label:"반전 결말", desc:"예상 밖의 충격적 반전" },
+  { id:"open", label:"열린 결말", desc:"상상의 여지를 남긴다" },
+];
+
+const povs = [
+  { id:"first_hero", label:"1인칭 주인공", desc:"주인공의 눈으로 직접 서술" },
+  { id:"first_observer", label:"1인칭 관찰자", desc:"기존 인물이 목격자로 서술" },
+  { id:"third_observer", label:"3인칭 관찰자", desc:"외부에서 행동만 묘사" },
+  { id:"third_author", label:"3인칭 작가", desc:"전지적 시점으로 서술" },
+];
+
+const povDescriptions = {
+  first_hero: "1인칭 주인공 시점: 주인공이 '나'로서 자신의 내면과 행동을 직접 서술",
+  first_observer: "1인칭 관찰자 시점: 선택한 인물이 '나'로서 주인공을 곁에서 목격하며 서술",
+  third_observer: "3인칭 관찰자 시점: 외부 관찰자가 인물의 행동과 대화만 객관적으로 묘사 (내면 서술 없음)",
+  third_author: "전지적 작가 시점: 화자가 모든 인물의 내면과 상황을 모두 알고 서술",
+};
+
+let selectedBook=null, selectedEnding=null, selectedPov=null, selectedChar=null;
+
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  window.scrollTo(0,0);
+}
+function goBack(id) { showScreen(id); }
+
+const bookGrid = document.getElementById('book-grid');
+books.forEach(book => {
+  const card = document.createElement('div');
+  card.className = 'book-card';
+  card.innerHTML = `<div class="book-top"><span class="book-emoji">${book.emoji}</span><div><div class="book-title">${book.title}</div><div class="book-author">${book.author}</div></div></div><div class="book-synopsis">${book.synopsis.replace(/\n/g,'<br>')}</div>`;
+  card.onclick = () => {
+    document.querySelectorAll('.book-card').forEach(c=>c.classList.remove('selected'));
+    card.classList.add('selected');
+    selectedBook = book;
+    document.getElementById('btn-next-1').disabled = false;
+  };
+  bookGrid.appendChild(card);
+});
+
+document.getElementById('btn-next-1').onclick = () => {
+  document.getElementById('selected-book-info').innerHTML = `<strong>${selectedBook.emoji} ${selectedBook.title}</strong> — ${selectedBook.author}`;
+  selectedEnding=null; selectedPov=null; selectedChar=null;
+  document.querySelectorAll('.option-card,.char-card').forEach(c=>c.classList.remove('selected'));
+  document.getElementById('char-select-wrap').classList.remove('visible');
+  showScreen('screen-options');
+};
+
+const endingGrid = document.getElementById('ending-grid');
+endings.forEach(e => {
+  const card = document.createElement('div');
+  card.className = 'option-card';
+  card.innerHTML = `<div class="o-label">${e.label}</div><div class="o-desc">${e.desc}</div>`;
+  card.onclick = () => {
+    endingGrid.querySelectorAll('.option-card').forEach(c=>c.classList.remove('selected'));
+    card.classList.add('selected');
+    selectedEnding = e;
+  };
+  endingGrid.appendChild(card);
+});
+
+const povGrid = document.getElementById('pov-grid');
+povs.forEach(p => {
+  const card = document.createElement('div');
+  card.className = 'option-card';
+  card.innerHTML = `<div class="o-label">${p.label}</div><div class="o-desc">${p.desc}</div>`;
+  card.onclick = () => {
+    povGrid.querySelectorAll('.option-card').forEach(c=>c.classList.remove('selected'));
+    card.classList.add('selected');
+    selectedPov = p;
+    selectedChar = null;
+    const wrap = document.getElementById('char-select-wrap');
+    if (p.id==='first_observer') { wrap.classList.add('visible'); buildCharGrid(); }
+    else { wrap.classList.remove('visible'); }
+  };
+  povGrid.appendChild(card);
+});
+
+function buildCharGrid() {
+  const grid = document.getElementById('char-grid');
+  grid.innerHTML = '';
+  selectedBook.characters.forEach(name => {
+    const card = document.createElement('div');
+    card.className = 'char-card';
+    card.textContent = name;
+    card.onclick = () => {
+      grid.querySelectorAll('.char-card').forEach(c=>c.classList.remove('selected'));
+      card.classList.add('selected');
+      selectedChar = name;
+    };
+    grid.appendChild(card);
+  });
+}
+
+document.getElementById('btn-generate').onclick = () => {
+  if (!selectedEnding) { alert('결말 유형을 선택해주세요.'); return; }
+  if (!selectedPov) { alert('시점을 선택해주세요.'); return; }
+  if (selectedPov.id==='first_observer' && !selectedChar) { alert('관찰할 인물을 선택해주세요.'); return; }
+  generate();
+};
+
+async function generate() {
+  const keyword = document.getElementById('keyword-input').value.trim();
+  showScreen('screen-loading');
+  const povInstruction = selectedPov.id==='first_observer'
+    ? `시점: ${povDescriptions[selectedPov.id]}. 관찰 인물: ${selectedChar}`
+    : `시점: ${povDescriptions[selectedPov.id]}`;
+  const prompt = `당신은 고전 소설 작가입니다. 아래 고전 소설의 새로운 결말을 한국어로 써주세요.\n\n작품: ${selectedBook.title} (${selectedBook.author})\n원작 줄거리: ${selectedBook.summary}\n결말 유형: ${selectedEnding.label} - ${selectedEnding.desc}\n${povInstruction}\n${keyword?`사용자 요청 키워드: ${keyword}`:''}\n\n규칙:\n- 선택된 시점을 반드시 일관되게 유지할 것\n- 원작의 분위기를 살리되 시점에 맞는 문체로 쓸 것\n- 새로운 결말만 500~700자로 작성할 것\n- 원작의 마지막 장면부터 자연스럽게 이어질 것\n- 제목이나 설명 없이 바로 본문만 쓸 것`;
+
+  try {
+    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${API_KEY}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+    });
+    const data = await res.json();
+    if (data.error) throw new Error(data.error.message);
+    const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (!text) throw new Error('응답을 받지 못했어요.');
+    document.getElementById('result-tags').innerHTML = `<span class="result-tag">${selectedBook.emoji} ${selectedBook.title}</span><span class="result-tag">${selectedEnding.label}</span><span class="result-tag">${selectedPov.label}${selectedChar?' · '+selectedChar:''}</span>`;
+    document.getElementById('result-text').textContent = text;
+    showScreen('screen-result');
+  } catch(err) {
+    document.getElementById('result-tags').innerHTML = '<span class="result-tag">오류 발생</span>';
+    document.getElementById('result-text').textContent = '오류: ' + err.message;
+    showScreen('screen-result');
+  }
+}
+</script>
+</body>
+</html>
